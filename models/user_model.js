@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema({
   },
   profileImage: {
     type: String,
-    required: true,
+    default : null
   },
   history: {
     type: [historySchema],
