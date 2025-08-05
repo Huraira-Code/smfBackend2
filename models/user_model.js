@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  profileImg: {
+  profileImage: {
     type: String,
     required: true,
   },
