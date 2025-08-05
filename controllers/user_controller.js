@@ -371,6 +371,31 @@ const addProfileImage = async (req, res) => {
   }
 };
 
+const getUserHistory = async (req, res) => {
+  try {
+    // Get the token from header
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ msg: "No token provided" });
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded._id;
+
+    // Find user and get only history
+    const user = await User.findById(userId).select("history");
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    return res.status(200).json({
+      msg: "User history fetched",
+      history: user.history,
+    });
+  } catch (error) {
+    console.error("Error fetching history:", error);
+    return res.status(500).json({ msg: "Server error", error });
+  }
+};
 
 
 const handleUserLogin = async (req, res) => {
@@ -745,7 +770,7 @@ module.exports = {
   forgetPasswordChange,
   forgetPasswordSend,
   addUserHistory,
+  addProfileImage,
   getUserHistory,
   sendToDeepSeek,
-  addProfileImage
 };
