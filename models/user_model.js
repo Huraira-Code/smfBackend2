@@ -7,7 +7,6 @@ const historySchema = new mongoose.Schema({
   result: { type: mongoose.Schema.Types.Mixed }, // or define shape if needed
 });
 
-
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -22,7 +21,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-   history: {
+  profileImg: {
+    type: String,
+    required: true,
+  },
+  history: {
     type: [historySchema],
     default: [], // ✅ default empty array
   },

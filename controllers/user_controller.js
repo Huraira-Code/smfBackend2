@@ -1,3 +1,4 @@
+const OpenAI = require("openai");
 const User = require("../models/user_model");
 const uploadOnCloudinary = require("../utils/cloudinary.js");
 const jwt = require("jsonwebtoken");
@@ -11,6 +12,10 @@ const upload = multer({ storage: multer.memoryStorage() }); // Store files in me
 const fs = require("fs"); // <--- Import Node.js File System module
 const path = require("path"); // <--- Import Node.js Path module
 
+const openai = new OpenAI({
+  apiKey: "sk-4ea30ebddbc241a7a497fb93520f37d5", // set in .env
+  baseURL: "https://api.deepseek.com",
+});
 process.env.GOOGLE_APPLICATION_CREDENTIALS =
   "./chemicalfinder-3872dc255a78.json";
 
@@ -324,29 +329,48 @@ const addUserHistory = async (req, res) => {
 };
 
 
-const getUserHistory = async (req, res) => {
+const addProfileImage = async (req, res) => {
   try {
-    // Get the token from headers
+    // Extract and verify token
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ msg: "No token provided" });
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded._id;
 
-    // Find the user and get their history
-    const user = await User.findById(userId).select("history");
+    // Check if file is attached
+    if (!req.file) {
+      return res.status(400).json({ msg: "Profile image file is required" });
+    }
 
-    if (!user) {
+    // Upload image to Cloudinary
+    const localFilePath = req.file.path;
+    const uploadedImg = await uploadOnCloudinary(localFilePath);
+    if (!uploadedImg?.url) {
+      return res.status(500).json({ msg: "Image upload failed" });
+    }
+
+    // Set profileImage in user document
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profileImage: uploadedImg.url },
+      { new: true }
+    );
+
+    if (!updatedUser) {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    return res.status(200).json({ history: user.history });
+    return res.status(200).json({
+      msg: "Profile image updated",
+      profileImage: uploadedImg.url,
+    });
   } catch (error) {
-    console.error("Error retrieving history:", error);
+    console.error("Error uploading profile image:", error);
     return res.status(500).json({ msg: "Server error", error });
   }
 };
+
 
 
 const handleUserLogin = async (req, res) => {
@@ -601,6 +625,33 @@ const sendDataToGPT = async (req, res) => {
   }
 };
 
+const sendToDeepSeek = async (req, res) => {
+  const { message, history } = req.body;
+
+  if (!message) {
+    return res.status(400).json({ error: "Message is required" });
+  }
+
+  try {
+    const messages = [
+      { role: "system", content: "You are a helpful assistant." },
+      ...(history || []),
+      { role: "user", content: message },
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: "deepseek-chat", // or "deepseek-coder" for code tasks
+      messages,
+    });
+
+    const reply = completion.choices[0].message.content;
+    res.status(200).json({ reply });
+  } catch (error) {
+    console.error("DeepSeek Error:", error);
+    res.status(500).json({ error: "Failed to get response from DeepSeek" });
+  }
+}; 
+
 const sendDataForRecommendation = async (req, res) => {
   console.log(
     "Starting sendDataForRecommendation (direct Gemini output with images)"
@@ -694,5 +745,7 @@ module.exports = {
   forgetPasswordChange,
   forgetPasswordSend,
   addUserHistory,
-  getUserHistory
+  getUserHistory,
+  sendToDeepSeek,
+  addProfileImage
 };
