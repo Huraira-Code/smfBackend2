@@ -279,7 +279,7 @@ const addUserHistory = async (req, res) => {
 
     // Extract history fields from body
     const { type, result } = req.body;
-    if (!type ) {
+    if (!type) {
       return res.status(400).json({ msg: "Type and result are required" });
     }
 
@@ -287,10 +287,10 @@ const addUserHistory = async (req, res) => {
     let imgUrl = "";
     if (req.file) {
       const localFilePath = req.file.path;
-      console.log(req.file)
+      console.log(req.file);
       imgUrlUnfinished = await uploadOnCloudinary(localFilePath);
-      imgUrl = imgUrlUnfinished.url
-      console.log("edabkjjgha " , imgUrl.url)
+      imgUrl = imgUrlUnfinished.url;
+      console.log("edabkjjgha ", imgUrl.url);
       // Delete local temp file
       // fs.unlinkSync(localFilePath);
 
@@ -308,8 +308,8 @@ const addUserHistory = async (req, res) => {
       result,
       timestamp: new Date(),
     };
-     
-    console.log(newHistory)
+
+    console.log(newHistory);
     // Push to user's history
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -327,7 +327,6 @@ const addUserHistory = async (req, res) => {
     return res.status(500).json({ msg: "Server error", error });
   }
 };
-
 
 const addProfileImage = async (req, res) => {
   try {
@@ -397,9 +396,8 @@ const getUserHistory = async (req, res) => {
   }
 };
 
-
 const handleUserLogin = async (req, res) => {
-  console.log("abchd")
+  console.log("abchd");
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -408,13 +406,14 @@ const handleUserLogin = async (req, res) => {
     const user = await User.findOne({
       email: email,
     });
-    console.log("me3",user)
-    const { _id, name } = user;
-    console.log("me2" , user)
+
     if (user) {
+      console.log("me3", user);
+      const { _id, name } = user;
+      console.log("me2", user);
       const validated = await bcrypt.compare(password, user.password);
       if (validated) {
-        console.log(process.env.JWT_SECRET)
+        console.log(process.env.JWT_SECRET);
         const token = jwt.sign({ _id, name }, process.env.JWT_SECRET, {
           expiresIn: "30d",
         });
@@ -428,17 +427,14 @@ const handleUserLogin = async (req, res) => {
       return res.status(404).json({ msg: "Email or password is incorrect" }); // 404 Not Found
     }
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.status(500).json({ err: error.message }); // 500 Internal Server Error
   }
 };
 
-
-
 const handleViewProfile = async (req, res) => {
-  console.log("hello")
+  console.log("hello");
   const authHeader = req.headers.authorization;
-
 
   // Validate Authorization Header
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -675,7 +671,7 @@ const sendToDeepSeek = async (req, res) => {
     console.error("DeepSeek Error:", error);
     res.status(500).json({ error: "Failed to get response from DeepSeek" });
   }
-}; 
+};
 
 const sendDataForRecommendation = async (req, res) => {
   console.log(
