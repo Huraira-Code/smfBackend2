@@ -289,7 +289,7 @@ const addUserHistory = async (req, res) => {
       const localFilePath = req.file.path;
       console.log(req.file);
       imgUrlUnfinished = await uploadOnCloudinary(localFilePath);
-      imgUrl = imgUrlUnfinished.url;
+      imgUrl = imgUrlUnfinished.secure_url;
       console.log("edabkjjgha ", imgUrl.url);
       // Delete local temp file
       // fs.unlinkSync(localFilePath);
