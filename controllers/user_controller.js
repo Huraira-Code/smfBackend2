@@ -351,7 +351,7 @@ const addProfileImage = async (req, res) => {
     // Set profileImage in user document
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { profileImage: uploadedImg.url },
+      { profileImage: uploadedImg.secure_url },
       { new: true }
     );
 
