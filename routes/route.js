@@ -7,10 +7,9 @@ const {
   changePassword,
   sendDataToGPT,
   sendDataForRecommendation,
-  forgetPasswordSend,
-  handleRepeatTokenSend,
-  // VerifyToken,
-  forgetPasswordChange,
+  forgotPassword,
+  verifyResetToken,
+  changePasswordWithToken,
   addUserHistory,
   getUserHistory,
   sendToDeepSeek,
@@ -27,12 +26,10 @@ router.route("/addProfileImage").post(upload.single("file"), addProfileImage);
 router.route("/changePassword").post(changePassword);
 router.route("/sendDataToGPT").post(upload.single("file"), sendDataToGPT);
 router.route("/sendDataForRecommendation").post(sendDataForRecommendation);
-router.route("/forgetPasswordSend").post(forgetPasswordSend);
-router.route("/SendRepeatToken").post(handleRepeatTokenSend);
-// router.route("/verifyToken").post(VerifyToken);
-router.route("/forgetPasswordChange").post(forgetPasswordChange);
-router.route("/forgetPasswordSend").post(forgetPasswordSend);
 router.route("/changePassword").post(changePassword);
+router.route("/forgetPassword").post(forgotPassword);
+router.route("/verifyResetToken").post(verifyResetToken);
+router.route("/changeForgetPassword").post(changePasswordWithToken);
 router.route("/history").get(getUserHistory);
 router.post("/ask", sendToDeepSeek);
 
