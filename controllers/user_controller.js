@@ -249,8 +249,8 @@ const handleUserSignUp = async (req, res) => {
     const user = await User.create({ name, email, password });
 
     const token = jwt.sign(
-      { _id: user._id, name: user.name },
-      process.env.JWT_SECRET,
+      { id: user._id, name: user.name, email: user.email },
+      process.env.JWT_SECRET,   // 🔥 make sure consistent
       { expiresIn: "30d" }
     );
 
@@ -265,6 +265,7 @@ const handleUserSignUp = async (req, res) => {
     return res.status(500).json({ msg: error.message });
   }
 };
+
 
 const addUserHistory = async (req, res) => {
   try {
@@ -396,40 +397,41 @@ const getUserHistory = async (req, res) => {
 };
 
 const handleUserLogin = async (req, res) => {
-  console.log("abchd");
   try {
     const { email, password } = req.body;
+
     if (!email || !password) {
-      return res.json({ msg: "all fields are required" });
+      return res.status(400).json({ msg: "All fields are required" });
     }
-    const user = await User.findOne({
-      email: email,
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ msg: "Email or password is incorrect" });
+    }
+
+    const validated = await bcrypt.compare(password, user.password);
+    if (!validated) {
+      return res.status(401).json({ msg: "Email or password is incorrect" });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, name: user.name, email: user.email },
+      process.env.JWT_SECRET,   // 🔥 consistent
+      { expiresIn: "30d" }
+    );
+
+    return res.status(200).json({
+      msg: "Successfully logged in",
+      token,
+      user: { id: user._id, name: user.name, email: user.email },
     });
 
-    if (user) {
-      console.log("me3", user);
-      const { _id, name } = user;
-      console.log("me2", user);
-      const validated = await bcrypt.compare(password, user.password);
-      if (validated) {
-        console.log(process.env.JWT_SECRET);
-        const token = jwt.sign({ _id, name }, process.env.JWT_SECRET, {
-          expiresIn: "30d",
-        });
-        return res
-          .status(200)
-          .json({ msg: "Successfully logged in", token: token });
-      } else {
-        return res.status(401).json({ msg: "Email or password is incorrect" }); // 401 Unauthorized
-      }
-    } else {
-      return res.status(404).json({ msg: "Email or password is incorrect" }); // 404 Not Found
-    }
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ err: error.message }); // 500 Internal Server Error
+    console.error("Login error:", error);
+    return res.status(500).json({ msg: error.message });
   }
 };
+
 
 const handleViewProfile = async (req, res) => {
   console.log("hello");

@@ -44,11 +44,12 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
+
 // Instance methods
 userSchema.methods.generateAuthToken = function () {
   return jwt.sign(
     { id: this._id, role: this.role, email: this.email },
-    process.env.JWT_SECRET_KEY,
+    process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRY }
   );
 };
