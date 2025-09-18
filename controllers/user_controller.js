@@ -236,7 +236,6 @@ const handleUserSignUp = async (req, res) => {
   try {
     const { name, email, password } = req.body;
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
     if (!name || !email || !password) {
       return res.status(401).json({ msg: "all fields are required" });
     }
@@ -251,7 +250,7 @@ const handleUserSignUp = async (req, res) => {
     const user = await User.create({
       name: name,
       email: email,
-      password: hashedPassword,
+      password: password,
     });
     if (user) {
       const { _id, name } = user;
@@ -411,8 +410,7 @@ const handleUserLogin = async (req, res) => {
       console.log("me3", user);
       const { _id, name } = user;
       console.log("me2", user);
-      const validated = await bcrypt.compare(password, user.password);
-      if (validated) {
+      if (password == user.password) {
         console.log(process.env.JWT_SECRET);
         const token = jwt.sign({ _id, name }, process.env.JWT_SECRET, {
           expiresIn: "30d",
