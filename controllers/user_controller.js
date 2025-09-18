@@ -11,15 +11,14 @@ const multer = require("multer"); // For handling file uploads
 const upload = multer({ storage: multer.memoryStorage() }); // Store files in memory
 const fs = require("fs"); // <--- Import Node.js File System module
 const path = require("path"); // <--- Import Node.js Path module
-const { verifyUserMail, forgotPasswordMail } = require("../utils/mail.utils");
+
 const openai = new OpenAI({
   apiKey: "sk-4ea30ebddbc241a7a497fb93520f37d5", // set in .env
   baseURL: "https://api.deepseek.com",
-  
 });
 process.env.GOOGLE_APPLICATION_CREDENTIALS =
   "./chemicalfinder-3872dc255a78.json";
-const crypto = require("crypto");
+
 const sendTokenMail = require("../utils/nodemailer.js");
 
 const createAndSendToken = async (userId, reciever) => {
@@ -232,40 +231,41 @@ const forgetPasswordChange = async (req, res) => {
 };
 
 const handleUserSignUp = async (req, res) => {
+  console.log(req.body);
+  console.log(process.env.JWT_SECRET);
   try {
     const { name, email, password } = req.body;
-
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
     if (!name || !email || !password) {
-      return res.status(400).json({ msg: "All fields are required" });
+      return res.status(401).json({ msg: "all fields are required" });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res
         .status(409)
-        .json({ msg: "Email is already registered. Please login" });
+        .json({ msg: "Email is already registered. Please Login " }); // 409 Conflict
     }
 
-    const user = await User.create({ name, email, password });
-
-    const token = jwt.sign(
-      { id: user._id, name: user.name, email: user.email },
-      process.env.JWT_SECRET,   // 🔥 make sure consistent
-      { expiresIn: "30d" }
-    );
-
-    return res.status(201).json({
-      msg: "Successfully signed up",
-      token,
-      user: { id: user._id, name: user.name, email: user.email },
+    const user = await User.create({
+      name: name,
+      email: email,
+      password: hashedPassword,
     });
-
+    if (user) {
+      const { _id, name } = user;
+      const token = jwt.sign({ _id, name }, process.env.JWT_SECRET, {
+        expiresIn: "30d",
+      });
+      return res.json({ msg: "Succesfully Signed Up", token: token });
+      console.log("a");
+    }
   } catch (error) {
-    console.error("Signup error:", error);
-    return res.status(500).json({ msg: error.message });
+    console.log(error);
+    return res.status(404).json({ msg: error });
   }
 };
-
 
 const addUserHistory = async (req, res) => {
   try {
@@ -290,7 +290,7 @@ const addUserHistory = async (req, res) => {
       console.log(req.file);
       imgUrlUnfinished = await uploadOnCloudinary(localFilePath);
       imgUrl = imgUrlUnfinished.secure_url;
-      console.log("edabkjjgha ",imgUrlUnfinished);
+      console.log("edabkjjgha ", imgUrl.url);
       // Delete local temp file
       // fs.unlinkSync(localFilePath);
 
@@ -397,41 +397,40 @@ const getUserHistory = async (req, res) => {
 };
 
 const handleUserLogin = async (req, res) => {
+  console.log("abchd");
   try {
     const { email, password } = req.body;
-
     if (!email || !password) {
-      return res.status(400).json({ msg: "All fields are required" });
+      return res.json({ msg: "all fields are required" });
     }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ msg: "Email or password is incorrect" });
-    }
-
-    const validated = await bcrypt.compare(password, user.password);
-    if (!validated) {
-      return res.status(401).json({ msg: "Email or password is incorrect" });
-    }
-
-    const token = jwt.sign(
-      { id: user._id, name: user.name, email: user.email },
-      process.env.JWT_SECRET,   // 🔥 consistent
-      { expiresIn: "30d" }
-    );
-
-    return res.status(200).json({
-      msg: "Successfully logged in",
-      token,
-      user: { id: user._id, name: user.name, email: user.email },
+    const user = await User.findOne({
+      email: email,
     });
 
+    if (user) {
+      console.log("me3", user);
+      const { _id, name } = user;
+      console.log("me2", user);
+      const validated = await bcrypt.compare(password, user.password);
+      if (validated) {
+        console.log(process.env.JWT_SECRET);
+        const token = jwt.sign({ _id, name }, process.env.JWT_SECRET, {
+          expiresIn: "30d",
+        });
+        return res
+          .status(200)
+          .json({ msg: "Successfully logged in", token: token });
+      } else {
+        return res.status(401).json({ msg: "Email or password is incorrect" }); // 401 Unauthorized
+      }
+    } else {
+      return res.status(404).json({ msg: "Email or password is incorrect" }); // 404 Not Found
+    }
   } catch (error) {
-    console.error("Login error:", error);
-    return res.status(500).json({ msg: error.message });
+    console.log(error);
+    return res.status(500).json({ err: error.message }); // 500 Internal Server Error
   }
 };
-
 
 const handleViewProfile = async (req, res) => {
   console.log("hello");
@@ -755,126 +754,6 @@ const sendDataForRecommendation = async (req, res) => {
   }
 };
 
-
-const forgotPassword = async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return next(new AppError("email is required!", 400));
-  }
-
-  const user = await User.findOne({ email });
-  console.log("usr", user);
-  if (!user) {
-    // For security, don't reveal if email exists or not
-    return next(
-      new AppError(
-        "If a user with that email exists, a password reset email has been sent.",
-        200
-      )
-    );
-  }
-
-  const resetToken = user.generateForgotPasswordToken(); // Assuming this method exists on userSchema
-
-  // Construct the reset link including the dynamic databaseName
-  const resetTokenLink = resetToken;
-
-  try {
-    await forgotPasswordMail(email, resetTokenLink); // Ensure mail utility can handle this URL
-  } catch (error) {
-    user.forgotPasswordToken = undefined;
-    user.forgotPasswordExpiry = undefined;
-    await user.save({ validateBeforeSave: false }); // Save without re-validating password
-    console.error("Forgot password email send error:", error);
-    return next(
-      new AppError(`Email could not be sent. Please try again later.`, 500)
-    );
-  }
-
-  await user.save(); // Save user with the token and expiry (assuming `generateForgotPasswordToken` updates these fields)
-  res.status(200).json({
-    success: true,
-    message: "Forgot password request sent to user mail",
-  });
-};
-
-const verifyResetToken = async (req, res) => {
-  const { resetToken } = req.body;
-
-  if (!resetToken) {
-    res
-      .status(400)
-      .json({ success: false, message: "token not found or token expired" });
-  }
-
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
-
-  const user = await User.findOne({
-    forgotPasswordToken: hashedToken,
-    forgotPasswordExpiry: { $gt: Date.now() },
-  });
-
-  if (!user) {
-    res.status(400).json({ success: false, message: "User not found" });
-  }
-
-  res.status(200).json({
-    success: true,
-    message: "Token verified successfully. You can now reset your password.",
-  });
-};
-
-const changePasswordWithToken = async (req, res) => {
-  const { password, confirmPassword, resetToken } = req.body;
-
-  if (!password || !confirmPassword) {
-    res
-      .status(400)
-      .json({ success: false, message: "password or confirm passwrod not send" });
-  }
-
-  if (password !== confirmPassword) {
-    res
-      .status(400)
-      .json({ success: false, message: "password and confirm password not match" });
-  }
-
-  if (!resetToken) {
-    res
-      .status(400)
-      .json({ success: false, message: "token not found or token expired" });
-  }
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
-
-  const user = await User.findOne({
-    forgotPasswordToken: hashedToken,
-    forgotPasswordExpiry: { $gt: Date.now() },
-  });
-
-  if (!user) {
-    res
-      .status(400)
-      .json({ success: false, message: "user not found or token expired" });
-  }
-
-  user.password = password; // pre-save hook should hash this
-  user.forgotPasswordToken = undefined; //learning everything
-  user.forgotPasswordExpiry = undefined;
-
-  await user.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Password reset successfully",
-  });
-};
 module.exports = {
   handleUserSignUp,
   handleUserLogin,
@@ -890,7 +769,4 @@ module.exports = {
   addProfileImage,
   getUserHistory,
   sendToDeepSeek,
-  forgotPassword,
-  verifyResetToken,
-  changePasswordWithToken,
 };
